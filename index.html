@@ -1540,35 +1540,124 @@
         .toast.error i { color: var(--rose); }
         .toast.info i { color: var(--cyan); }
 
-        /* Responsive Layouts */
+        /* Responsive Layouts - Fully Optimized for Laptop, iPad and Mobile Phones */
         @media (max-width: 1024px) {
+            header {
+                max-width: 100%;
+                padding: 15px;
+            }
+            .app-container {
+                padding: 0 15px 30px 15px;
+            }
             .lobby-grid, .quiz-layout, .results-grid {
                 grid-template-columns: 1fr;
+                gap: 25px;
             }
             .lobby-history {
-                max-height: 350px;
+                max-height: 400px;
             }
+            /* Place question navigator sidebar below the main question box */
             .quiz-sidebar {
-                grid-row: 1;
+                grid-row: 2;
             }
             .question-grid {
                 grid-template-columns: repeat(10, 1fr);
             }
+            .glass-card {
+                padding: 25px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .brand {
+                font-size: 1.5rem;
+            }
+            .lobby-info h1 {
+                font-size: 2.2rem;
+            }
+            .question-title {
+                font-size: 1.2rem;
+            }
+            .option-text {
+                font-size: 0.95rem;
+            }
+            pre {
+                font-size: 0.85rem;
+                padding: 15px;
+            }
         }
 
         @media (max-width: 640px) {
-            .settings-box {
-                grid-template-columns: 1fr;
-                gap: 15px;
+            header {
+                padding: 10px 10px;
             }
-            .question-grid {
-                grid-template-columns: repeat(5, 1fr);
+            .brand {
+                font-size: 1.25rem;
+                gap: 8px;
             }
-            .stats-grid {
-                grid-template-columns: 1fr;
+            .control-icon-btn {
+                width: 38px;
+                height: 38px;
+                font-size: 0.95rem;
+                border-radius: 10px;
+            }
+            .glass-card {
+                padding: 15px;
+                border-radius: 16px;
+            }
+            .lobby-info h1 {
+                font-size: 1.8rem;
+            }
+            .lobby-info p {
+                font-size: 0.95rem;
+                margin-bottom: 20px;
             }
             .lobby-stats-row {
                 flex-direction: column;
+                gap: 12px;
+                margin-bottom: 25px;
+            }
+            .lobby-stat-item {
+                padding: 12px;
+            }
+            .lobby-stat-item i {
+                font-size: 1.5rem;
+            }
+            .lobby-stat-item strong {
+                font-size: 1.2rem;
+            }
+            .settings-box {
+                grid-template-columns: 1fr;
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            .select-glass, .input-name-box input {
+                padding: 12px 15px;
+                font-size: 0.95rem;
+            }
+            .question-grid {
+                grid-template-columns: repeat(5, 1fr);
+                gap: 8px;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .results-actions {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .results-actions .btn {
+                width: 100%;
+            }
+            .quiz-controls {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .quiz-controls .btn {
+                width: 100%;
+                padding: 12px 20px;
+                font-size: 0.95rem;
             }
             .review-header {
                 flex-direction: column;
@@ -1577,6 +1666,26 @@
             }
             .review-filters {
                 flex-wrap: wrap;
+                width: 100%;
+                gap: 8px;
+            }
+            .filter-btn {
+                flex: 1;
+                text-align: center;
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+            .review-question-card {
+                padding: 15px;
+            }
+            .bookmark-card {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .bookmark-actions {
+                width: 100%;
+                justify-content: flex-end;
             }
         }
     </style>
