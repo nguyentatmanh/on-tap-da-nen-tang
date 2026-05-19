@@ -2616,10 +2616,30 @@
         }
 
         function speakAdam(text) {
+            // Cancel any ongoing local speech
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+            }
+
+            // 1. Primary Engine: High-quality Online Google Vietnamese TTS (100% fail-proof, natural native speaker)
+            try {
+                const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=vi&client=tw-ob&q=${encodeURIComponent(text)}`;
+                const audio = new Audio(url);
+                
+                audio.play().then(() => {
+                    console.log("Successfully spoke Vietnamese via Google TTS API.");
+                }).catch(err => {
+                    console.warn("Google TTS API play failed (likely autoplay policy block). Falling back to Web Speech API...", err);
+                    speakAdamLocalFallback(text);
+                });
+            } catch (err) {
+                console.error("Failed to initialize online TTS audio player, falling back...", err);
+                speakAdamLocalFallback(text);
+            }
+        }
+
+        function speakAdamLocalFallback(text) {
             if (!('speechSynthesis' in window)) return;
-            
-            // Stop any ongoing speech
-            window.speechSynthesis.cancel();
             
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'vi-VN';
@@ -3494,7 +3514,7 @@
             } else if (finalScore >= 7.0) {
                 adamText = "GIỎI ĐẤY! ĐÚNG LÀ CON TRAI CỦA TA";
             } else if (finalScore >= 5.0) {
-                adamText = "ĐƯỢC ĐẤY, NHƯNG CHƯA TÀU ĐÂU EM ƠI!";
+                adamText = "ĐƯỢC ĐẤY, NHƯNG CHƯA TÀY ĐÂU EM ƠI!";
             } else if (finalScore >= 3.0) {
                 adamText = "NGƯỜI ĐÂU, BAN THƯỞNG CHO 36 CÁI NEM CHUA NGAY LẬP TỨC";
             }
