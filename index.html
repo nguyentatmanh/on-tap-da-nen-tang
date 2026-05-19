@@ -1824,6 +1824,16 @@
                         <span class="final-score-sub">Điểm số quy đổi (Thang điểm 10)</span>
                         <div style="font-size: 1.1rem; font-weight: bold; margin-bottom: 10px;" id="result-status-title">HOÀN THÀNH XUẤT SẮC!</div>
                         <p style="color: var(--text-muted); line-height: 1.5; font-size: 0.9rem;" id="result-compliment">Bạn đã thể hiện kiến thức lập trình cực kỳ ấn tượng.</p>
+                        
+                        <!-- ADAM AI Speech Display Box -->
+                        <div id="adam-speech-box" class="adam-speech-box" style="margin-top: 20px; padding: 15px; background: rgba(0, 0, 0, 0.25); border-radius: 12px; border: 1px solid rgba(255, 209, 102, 0.25); text-align: center; box-shadow: 0 0 15px rgba(255, 209, 102, 0.1);">
+                            <div style="font-size: 0.8rem; color: #ffd166; font-weight: bold; text-transform: uppercase; margin-bottom: 5px; letter-spacing: 1px;">
+                                <i class="fa-solid fa-robot"></i> Giọng Trí Tuệ Nhân Tạo ADAM
+                            </div>
+                            <div id="adam-speech-text" style="font-size: 1.1rem; font-weight: 800; color: #ffffff; line-height: 1.4; text-shadow: 0 0 10px rgba(255, 255, 255, 0.4);">
+                                "--"
+                            </div>
+                        </div>
                     </div>
 
                     <div class="results-analytics">
@@ -2591,6 +2601,35 @@
             setTimeout(() => {
                 toast.classList.remove('active');
             }, 3000);
+        }
+
+        // --- 6.5 ADAM AI VOICE SYNTHESIZER ---
+        function speakAdam(text) {
+            if (!('speechSynthesis' in window)) return;
+            
+            // Stop any ongoing speech
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'vi-VN';
+            utterance.rate = 1.05;
+            utterance.pitch = 0.85; // Lower pitch for ADAM's confident male voice
+            
+            const voices = window.speechSynthesis.getVoices();
+            let selectedVoice = null;
+
+            // Search for Vietnamese voices
+            const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+            if (viVoices.length > 0) {
+                const maleVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('male'));
+                selectedVoice = maleVoice || viVoices[0];
+            }
+            
+            if (selectedVoice) {
+                utterance.voice = selectedVoice;
+            }
+            
+            window.speechSynthesis.speak(utterance);
         }
 
         // --- 7. LOCAL STORAGE HISTORY & BOOKMARKS LOGGING ---
@@ -3430,6 +3469,23 @@
                 soundCtrl.playWrong();
             }
 
+            // ADAM AI Voice & Text Speech Integration
+            let adamText = "YẾU QUÁ! CỐ GẮNG HƠN NỮA NHÉ EM TRAI";
+            if (finalScore >= 9.0) {
+                adamText = "MÀY LÀ VUA RỒI, MÀY TÀY RỒI";
+            } else if (finalScore >= 7.0) {
+                adamText = "GIỎI ĐẤY! ĐÚNG LÀ CON TRAI CỦA TA";
+            } else if (finalScore >= 5.0) {
+                adamText = "ĐƯỢC ĐẤY, NHƯNG CHƯA TÀU ĐÂU EM ƠI!";
+            } else if (finalScore >= 3.0) {
+                adamText = "NGƯỜI ĐÂU, BAN THƯỞNG CHO 36 CÁI NEM CHUA NGAY LẬP TỨC";
+            }
+            
+            document.getElementById('adam-speech-text').textContent = `"${adamText}"`;
+            
+            // Trigger speech synthesis
+            speakAdam(adamText);
+
             // Prepare dynamic detailed review list
             buildDetailedReviewList();
 
@@ -3600,6 +3656,11 @@
             renderHistoryUI();
             loadBookmarksFromStorage();
             updateResumeButtonVisibility();
+
+            // Warm up speech synthesis voices list
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.getVoices();
+            }
         };
     </script>
 </body>
