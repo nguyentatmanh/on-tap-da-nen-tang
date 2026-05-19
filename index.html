@@ -1612,7 +1612,7 @@
                             <div class="lobby-stat-item">
                                 <i class="fa-solid fa-clock"></i>
                                 <span>Thời gian làm bài</span>
-                                <strong>60 Phút</strong>
+                                <strong id="lobby-time-display">60 Phút</strong>
                             </div>
                             <div class="lobby-stat-item">
                                 <i class="fa-solid fa-award"></i>
@@ -1632,6 +1632,26 @@
                                     <option value="auto">Tự động (Theo chế độ ôn/thi)</option>
                                     <option value="immediate">Hiện ngay khi chọn đáp án</option>
                                     <option value="submit">Chỉ hiện sau khi nộp bài</option>
+                                </select>
+                            </div>
+                            <div class="config-answer-box">
+                                <label for="exam-time-config"><i class="fa-solid fa-clock"></i> Thời gian thi thử</label>
+                                <select id="exam-time-config" class="select-glass" onchange="updateLobbyTimeDisplay()">
+                                    <option value="60">60 Phút (Mặc định)</option>
+                                    <option value="45">45 Phút</option>
+                                    <option value="30">30 Phút</option>
+                                    <option value="15">15 Phút</option>
+                                    <option value="10">10 Phút</option>
+                                    <option value="5">5 Phút</option>
+                                </select>
+                            </div>
+                            <div class="config-answer-box">
+                                <label for="shuffle-config"><i class="fa-solid fa-shuffle"></i> Xáo trộn đề (Câu hỏi & Đáp án)</label>
+                                <select id="shuffle-config" class="select-glass">
+                                    <option value="none">Không xáo trộn (Mặc định)</option>
+                                    <option value="questions">Chỉ xáo trộn câu hỏi</option>
+                                    <option value="options">Chỉ xáo trộn các đáp án</option>
+                                    <option value="both">Xáo trộn cả câu hỏi & đáp án</option>
                                 </select>
                             </div>
                         </div>
@@ -2452,6 +2472,7 @@
             flags: Array(50).fill(false), // Mark for review
             bookmarks: Array(50).fill(false), // Persistent bookmarks
             activeQuestionIndices: Array.from({length: 50}, (_, i) => i), // Indices of active questions
+            shuffledOptions: [], // Shuffled options map per question
             timerVal: 60 * 60, // 60 minutes in seconds
             timeElapsed: 0,
             timerInterval: null,
@@ -2475,6 +2496,15 @@
             if (config === 'submit') return false;
             // 'auto' mode: only STUDY or BOOKMARKS modes show answer immediately
             return state.mode === 'study' || state.mode === 'bookmarks';
+        }
+
+        function updateLobbyTimeDisplay() {
+            const selectEl = document.getElementById('exam-time-config');
+            if (selectEl) {
+                const mins = selectEl.value;
+                const displayEl = document.getElementById('lobby-time-display');
+                if (displayEl) displayEl.textContent = `${mins} Phút`;
+            }
         }
 
         // --- 5. SYNTAX HIGHLIGHTER FOR PRE BLOCKS ---
@@ -2607,12 +2637,19 @@
         // --- 8. TIMER CONTROLLER ---
         function startTimer() {
             clearInterval(state.timerInterval);
-            const totalSecs = 60 * 60; // 60 mins
+            const selectEl = document.getElementById('exam-time-config');
+            const minutes = selectEl ? parseInt(selectEl.value) : 60;
+            const totalSecs = minutes * 60;
             state.timerVal = totalSecs;
             state.timeElapsed = 0;
             
             const ring = document.getElementById('timer-ring');
             const ringTotalOffset = 126;
+
+            // Set initial ring progress and timer text
+            document.getElementById('timer-text').textContent = `${minutes.toString().padStart(2, '0')}:00`;
+            ring.style.strokeDashoffset = 0;
+            ring.className.baseVal = "timer-progress";
 
             state.timerInterval = setInterval(() => {
                 if (state.timerVal <= 0) {
@@ -2641,7 +2678,7 @@
                         showToast("Chỉ còn lại 1 phút! Khẩn trương nộp bài.", "error");
                         soundCtrl.playWrong();
                     }
-                } else if (state.timerVal <= 600) { // < 10 minutes warning
+                } else if (state.timerVal <= Math.min(600, totalSecs * 0.2)) { // < 10 mins or < 20% of time
                     ring.className.baseVal = "timer-progress warning";
                 } else {
                     ring.className.baseVal = "timer-progress";
@@ -2675,14 +2712,46 @@
                 state.activeQuestionIndices = Array.from({length: 50}, (_, i) => i);
             }
 
+            // Shuffle settings
+            state.shuffledOptions = [];
+            const shuffleConfigEl = document.getElementById('shuffle-config');
+            const shuffleConfig = shuffleConfigEl ? shuffleConfigEl.value : 'none';
+            const shuffleQuestions = shuffleConfig === 'questions' || shuffleConfig === 'both';
+            const shuffleOptions = shuffleConfig === 'options' || shuffleConfig === 'both';
+
+            // Shuffle active question indices if enabled
+            if (shuffleQuestions) {
+                for (let i = state.activeQuestionIndices.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [state.activeQuestionIndices[i], state.activeQuestionIndices[j]] = [state.activeQuestionIndices[j], state.activeQuestionIndices[i]];
+                }
+            }
+
+            // Generate option order mapping for each question
+            quizData.forEach((q, idx) => {
+                let order = Array.from({length: q.options.length}, (_, i) => i);
+                if (shuffleOptions) {
+                    for (let i = order.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [order[i], order[j]] = [order[j], order[i]];
+                    }
+                }
+                state.shuffledOptions[idx] = order;
+            });
+
             const totalQ = getActiveQuestionsCount();
 
             // Update UI Sidebar info
             document.getElementById('sidebar-user-name').textContent = state.userName;
             
             let modeLabel = 'Tự Ôn Tập';
-            if (mode === 'exam') modeLabel = 'Thi thử (60 Phút)';
-            else if (mode === 'bookmarks') modeLabel = 'Ôn Câu Đã Lưu';
+            if (mode === 'exam') {
+                const selectEl = document.getElementById('exam-time-config');
+                const mins = selectEl ? selectEl.value : 60;
+                modeLabel = `Thi thử (${mins} Phút)`;
+            } else if (mode === 'bookmarks') {
+                modeLabel = 'Ôn Câu Đã Lưu';
+            }
             
             document.getElementById('sidebar-mode-name').textContent = modeLabel;
             document.getElementById('sidebar-answered-count').textContent = `0 / ${totalQ}`;
@@ -2743,34 +2812,37 @@
             const chosenAns = state.answers[actualIdx];
             const isAnswered = chosenAns !== null;
 
-            q.options.forEach((optStr, optIdx) => {
+            const optionsOrder = state.shuffledOptions[actualIdx] || Array.from({length: q.options.length}, (_, i) => i);
+
+            optionsOrder.forEach((originalOptIdx, displayOptIdx) => {
+                const optStr = q.options[originalOptIdx];
                 const div = document.createElement('div');
                 div.className = 'option-item';
                 
                 // Add states
-                if (chosenAns === optIdx) {
+                if (chosenAns === originalOptIdx) {
                     div.classList.add('selected');
                 }
 
-                // Add evaluation in STUDY or BOOKMARKS MODE
+                // Add evaluation if enabled
                 if (shouldShowAnswerImmediately() && isAnswered) {
                     div.classList.add('disabled');
-                    if (optIdx === q.correctIndex) {
+                    if (originalOptIdx === q.correctIndex) {
                         div.classList.add('correct');
-                    } else if (chosenAns === optIdx) {
+                    } else if (chosenAns === originalOptIdx) {
                         div.classList.add('wrong');
                     }
                 }
 
                 div.innerHTML = `
-                    <div class="option-badge">${String.fromCharCode(65 + optIdx)}</div>
+                    <div class="option-badge">${String.fromCharCode(65 + displayOptIdx)}</div>
                     <div class="option-text">${optStr}</div>
                 `;
 
                 // OnClick behavior
                 div.onclick = () => {
                     if (shouldShowAnswerImmediately() && isAnswered) return; // Answer locked
-                    selectOption(optIdx);
+                    selectOption(originalOptIdx);
                 };
 
                 optionsBox.appendChild(div);
