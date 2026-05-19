@@ -402,6 +402,28 @@
             padding: 10px;
         }
 
+        .btn-resume-quiz {
+            border: 1px dashed #ffd166 !important;
+            background: rgba(255, 209, 102, 0.08) !important;
+        }
+        .btn-resume-quiz:hover {
+            border: 1px solid #ffd166 !important;
+            background: rgba(255, 209, 102, 0.15) !important;
+            box-shadow: 0 0 20px rgba(255, 209, 102, 0.3) !important;
+            transform: translateY(-4px);
+        }
+        @keyframes pulse-glow {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 209, 102, 0.4);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(255, 209, 102, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 209, 102, 0);
+            }
+        }
+
         .mode-selection {
             display: flex;
             flex-direction: column;
@@ -1657,6 +1679,16 @@
                         </div>
 
                         <div class="mode-selection">
+                            <div id="btn-resume-quiz" class="mode-card btn-resume-quiz" onclick="resumeQuizSession()" style="display: none; margin-bottom: 5px;">
+                                <div class="mode-icon" style="background: linear-gradient(135deg, #ffd166, #ff79c6); animation: pulse-glow 2s infinite;">
+                                    <i class="fa-solid fa-play" style="color: #120c26;"></i>
+                                </div>
+                                <div class="mode-details">
+                                    <h3 style="color: #ffd166;"><i class="fa-solid fa-fire"></i> Tiếp Tục Làm Bài</h3>
+                                    <p id="resume-quiz-details" style="color: rgba(255,255,255,0.85);">Đang có lượt thi dang dở. Bấm để khôi phục và tiếp tục làm bài ngay lập tức!</p>
+                                </div>
+                            </div>
+
                             <div class="mode-card mode-study" onclick="startQuiz('study')">
                                 <div class="mode-icon">
                                     <i class="fa-solid fa-book-open-reader"></i>
@@ -2624,6 +2656,161 @@
             }
         }
 
+        // --- 7.5 ACTIVE SESSION PERSISTENCE & RESUME FUNCTIONS ---
+        function saveActiveSession() {
+            if (state.examActive) {
+                const sessionData = {
+                    mode: state.mode,
+                    userName: state.userName,
+                    currentQuestionIndex: state.currentQuestionIndex,
+                    answers: state.answers,
+                    flags: state.flags,
+                    activeQuestionIndices: state.activeQuestionIndices,
+                    shuffledOptions: state.shuffledOptions,
+                    timerVal: state.timerVal,
+                    timeElapsed: state.timeElapsed,
+                    examActive: state.examActive
+                };
+                localStorage.setItem('quiz_active_session', JSON.stringify(sessionData));
+            } else {
+                localStorage.removeItem('quiz_active_session');
+            }
+            updateResumeButtonVisibility();
+        }
+
+        function updateResumeButtonVisibility() {
+            const btn = document.getElementById('btn-resume-quiz');
+            const sessionStr = localStorage.getItem('quiz_active_session');
+            if (btn) {
+                if (sessionStr) {
+                    const session = JSON.parse(sessionStr);
+                    let modeLabel = 'Tự ôn tập';
+                    if (session.mode === 'exam') modeLabel = 'Thi thử';
+                    else if (session.mode === 'bookmarks') modeLabel = 'Ôn câu lưu';
+                    
+                    const answeredCount = session.answers.filter(ans => ans !== null).length;
+                    const totalQ = session.activeQuestionIndices.length;
+                    
+                    document.getElementById('resume-quiz-details').innerHTML = `Khôi phục lượt làm bài <strong>${modeLabel}</strong> của <strong>${session.userName}</strong>. Tiến trình: <strong>${answeredCount}/${totalQ} câu</strong>. Bấm để tiếp tục làm ngay!`;
+                    btn.style.display = 'flex';
+                } else {
+                    btn.style.display = 'none';
+                }
+            }
+        }
+
+        function resumeQuizSession() {
+            soundCtrl.playTick();
+            const sessionStr = localStorage.getItem('quiz_active_session');
+            if (!sessionStr) {
+                showToast("Không tìm thấy lượt làm bài cũ!", "error");
+                return;
+            }
+            
+            const session = JSON.parse(sessionStr);
+            state.mode = session.mode;
+            state.userName = session.userName;
+            state.currentQuestionIndex = session.currentQuestionIndex;
+            state.answers = session.answers;
+            state.flags = session.flags;
+            state.activeQuestionIndices = session.activeQuestionIndices;
+            state.shuffledOptions = session.shuffledOptions || [];
+            state.timerVal = session.timerVal;
+            state.timeElapsed = session.timeElapsed;
+            state.examActive = true;
+            
+            // Reload saved bookmarks in state
+            loadBookmarksFromStorage();
+
+            const totalQ = getActiveQuestionsCount();
+
+            // Update UI Sidebar info
+            document.getElementById('sidebar-user-name').textContent = state.userName;
+            
+            let modeLabel = 'Tự Ôn Tập';
+            if (state.mode === 'exam') {
+                const selectEl = document.getElementById('exam-time-config');
+                const mins = selectEl ? selectEl.value : 60;
+                modeLabel = `Thi thử (${mins} Phút)`;
+            } else if (state.mode === 'bookmarks') {
+                modeLabel = 'Ôn Câu Đã Lưu';
+            }
+            
+            document.getElementById('sidebar-mode-name').textContent = modeLabel;
+            
+            // Count answered
+            const answeredCount = state.answers.filter(ans => ans !== null).length;
+            document.getElementById('sidebar-answered-count').textContent = `${answeredCount} / ${totalQ}`;
+
+            // Show submit button only in Exam Mode
+            document.getElementById('btn-submit').style.display = state.mode === 'exam' ? 'block' : 'none';
+
+            // Hide/Show screen panels
+            document.getElementById('screen-lobby').classList.remove('active');
+            document.getElementById('screen-quiz').classList.add('active');
+
+            // Set up timer if exam
+            if (state.mode === 'exam') {
+                resumeTimer();
+                document.querySelector('.timer-circular-container').style.display = 'block';
+            } else {
+                clearInterval(state.timerInterval);
+                document.getElementById('timer-text').textContent = 'Tự do';
+                document.querySelector('.timer-circular-container').style.display = 'none';
+            }
+
+            // Populate Questions & Navigation
+            renderNavigatorGrid();
+            loadQuestion(state.currentQuestionIndex);
+            
+            showToast(`Chào mừng bạn trở lại, ${state.userName}!`, "success");
+        }
+
+        function resumeTimer() {
+            clearInterval(state.timerInterval);
+            
+            // Determine total time from the config dropdown
+            const selectEl = document.getElementById('exam-time-config');
+            const minutes = selectEl ? parseInt(selectEl.value) : 60;
+            const totalSecs = minutes * 60;
+            
+            const ring = document.getElementById('timer-ring');
+            const ringTotalOffset = 126;
+
+            state.timerInterval = setInterval(() => {
+                if (state.timerVal <= 0) {
+                    clearInterval(state.timerInterval);
+                    autoSubmitExam();
+                    return;
+                }
+
+                state.timerVal--;
+                state.timeElapsed++;
+                
+                // Auto-save session every second of timer!
+                saveActiveSession();
+
+                // Update text
+                const min = Math.floor(state.timerVal / 60);
+                const sec = state.timerVal % 60;
+                document.getElementById('timer-text').textContent = `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+
+                // Update SVG ring
+                const progressRatio = state.timerVal / totalSecs;
+                const offsetVal = ringTotalOffset - (progressRatio * ringTotalOffset);
+                ring.style.strokeDashoffset = offsetVal;
+
+                // Color alerts based on remaining time
+                if (state.timerVal <= 60) {
+                    ring.className.baseVal = "timer-progress danger";
+                } else if (state.timerVal <= Math.min(600, totalSecs * 0.2)) {
+                    ring.className.baseVal = "timer-progress warning";
+                } else {
+                    ring.className.baseVal = "timer-progress";
+                }
+            }, 1000);
+        }
+
         // Clear history button
         document.getElementById('btn-clear-history').addEventListener('click', () => {
             if (confirm("Bạn có chắc chắn muốn xóa toàn bộ lịch sử thi không?")) {
@@ -2777,6 +2964,9 @@
             renderNavigatorGrid();
             loadQuestion(0);
             
+            // Save initial active session state
+            saveActiveSession();
+            
             showToast(`Chào mừng ${state.userName} đến với Chế độ ${modeLabel}!`, "success");
         }
 
@@ -2786,6 +2976,10 @@
 
         function loadQuestion(index) {
             state.currentQuestionIndex = index;
+            
+            // Auto-save active session state
+            saveActiveSession();
+
             const q = getActiveQuestion(index);
             const totalQ = getActiveQuestionsCount();
             const actualIdx = state.activeQuestionIndices[index];
@@ -3126,6 +3320,9 @@
             clearInterval(state.timerInterval);
             state.examActive = false;
 
+            // Clear active session
+            saveActiveSession();
+
             // Calculations
             let correctCount = 0;
             let skippedCount = 0;
@@ -3402,6 +3599,7 @@
         window.onload = () => {
             renderHistoryUI();
             loadBookmarksFromStorage();
+            updateResumeButtonVisibility();
         };
     </script>
 </body>
