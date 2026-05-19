@@ -1617,7 +1617,7 @@
                             <div class="lobby-stat-item">
                                 <i class="fa-solid fa-award"></i>
                                 <span>Thang điểm tối đa</span>
-                                <strong>10.0 Điểm</strong>
+                                <strong>10 Điểm</strong>
                             </div>
                         </div>
 
@@ -2556,7 +2556,7 @@
                         <div class="hist-name">${item.name} (${item.mode === 'exam' ? 'Thi thử' : (item.mode === 'bookmarks' ? 'Ôn câu lưu' : 'Ôn tập')})</div>
                         <div class="hist-date">${item.date}</div>
                     </div>
-                    <div class="hist-score ${item.score >= 5 ? 'pass' : 'fail'}">${item.score.toFixed(1)} đ</div>
+                    <div class="hist-score ${item.score >= 5 ? 'pass' : 'fail'}">${item.score % 1 === 0 ? item.score.toFixed(0) : item.score.toFixed(1)} đ</div>
                 </div>
             `).join('');
         }
@@ -3107,7 +3107,7 @@
             saveExamHistory(record);
 
             // Populating RESULTS screen UI
-            document.getElementById('result-score-val').textContent = finalScore.toFixed(1);
+            document.getElementById('result-score-val').textContent = finalScore % 1 === 0 ? finalScore.toFixed(0) : finalScore.toFixed(1);
             document.getElementById('results-user-meta').innerHTML = `Thí sinh: <strong>${state.userName}</strong> | Chế độ: <strong>${state.mode === 'exam' ? 'Thi thử' : 'Tự học'}</strong> | Kết thúc lúc ${formattedDate}`;
             
             document.getElementById('stat-correct').textContent = `${correctCount} / 50`;
