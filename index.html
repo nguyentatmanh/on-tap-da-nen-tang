@@ -2604,6 +2604,17 @@
         }
 
         // --- 6.5 ADAM AI VOICE SYNTHESIZER ---
+        let viVoicesList = [];
+        function loadVoices() {
+            if (!('speechSynthesis' in window)) return;
+            const voices = window.speechSynthesis.getVoices();
+            viVoicesList = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
+        }
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = loadVoices;
+            loadVoices();
+        }
+
         function speakAdam(text) {
             if (!('speechSynthesis' in window)) return;
             
@@ -2612,21 +2623,28 @@
             
             const utterance = new SpeechSynthesisUtterance(text);
             utterance.lang = 'vi-VN';
-            utterance.rate = 1.05;
+            utterance.rate = 1.0;
             utterance.pitch = 0.85; // Lower pitch for ADAM's confident male voice
             
-            const voices = window.speechSynthesis.getVoices();
+            if (viVoicesList.length === 0) {
+                loadVoices();
+            }
+            
             let selectedVoice = null;
-
-            // Search for Vietnamese voices
-            const viVoices = voices.filter(v => v.lang.includes('vi') || v.lang.includes('VI'));
-            if (viVoices.length > 0) {
-                const maleVoice = viVoices.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('male'));
-                selectedVoice = maleVoice || viVoices[0];
+            if (viVoicesList.length > 0) {
+                const maleVoice = viVoicesList.find(v => v.name.toLowerCase().includes('nam') || v.name.toLowerCase().includes('an') || v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('google'));
+                selectedVoice = maleVoice || viVoicesList[0];
             }
             
             if (selectedVoice) {
                 utterance.voice = selectedVoice;
+            } else {
+                // Last-resort fallback to scan active getVoices list directly
+                const fallbackVoices = window.speechSynthesis.getVoices();
+                const fallbackVi = fallbackVoices.find(v => v.lang.toLowerCase().includes('vi'));
+                if (fallbackVi) {
+                    utterance.voice = fallbackVi;
+                }
             }
             
             window.speechSynthesis.speak(utterance);
